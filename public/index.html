@@ -48,6 +48,8 @@
 
     <script>
         const eventSource = new EventSource('/order-book-stream');
+        const priceFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+        const amountFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         eventSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
@@ -57,8 +59,8 @@
             data.forEach(order => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${order.price}</td>
-                    <td>${order.amount}</td>
+                    <td>${priceFormatter.format(order.price)}</td>
+                    <td>${amountFormatter.format(order.amount)} units</td>
                     <td class="${order.side}">${order.side}</td>
                 `;
                 tbody.appendChild(row);
@@ -72,3 +74,4 @@
     </script>
 </body>
 </html>
+
