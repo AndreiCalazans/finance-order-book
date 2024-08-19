@@ -1,24 +1,29 @@
 const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
 
 app.use(express.static('public'));
 
-io.on('connection', (socket) => {
-    console.log('New client connected');
-    
-    // Send fake order book data 40 times per second
-    setInterval(() => {
-        const fakeData = generateFakeOrderBook();
-        socket.emit('orderBookUpdate', fakeData);
-    }, 25); // 40 times per second = 1000ms / 40 = 25ms
+app.get('/order-book-stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-    socket.on('disconnect', () => {
-        console.log('Client disconnected');
+    // Send an initial message to start the event stream
+    res.write('retry: 10000\n\n');
+
+    const sendFakeData = () => {
+        const fakeData = generateFakeOrderBook();
+        res.write(`data: ${JSON.stringify(fakeData)}\n\n`);
+    };
+
+    // Send fake order book data 40 times per second
+    const intervalId = setInterval(sendFakeData, 25); // 40 times per second
+
+    // Cleanup when the client disconnects
+    req.on('close', () => {
+        clearInterval(intervalId);
+        res.end();
     });
 });
 
@@ -34,4 +39,4 @@ const generateFakeOrderBook = () => {
     return orders;
 };
 
-server.listen(3000, () => console.log('Server is running on port 3000'));
+app.listen(3000, () => console.log('Server is running on port 3000'));
