@@ -32,45 +32,64 @@
             color: red;
         }
     </style>
+    <!-- Include React and ReactDOM from CDN -->
+    <script src="https://unpkg.com/react/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel for JSX support -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 </head>
 <body>
-    <table id="orderBook">
-        <thead>
-            <tr>
-                <th>Price</th>
-                <th>Amount</th>
-                <th>Side</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    </table>
+    <div id="root"></div>
 
-    <script>
-        const eventSource = new EventSource('/order-book-stream');
-        const priceFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-        const amountFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-        eventSource.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            const tbody = document.querySelector('#orderBook tbody');
-            tbody.innerHTML = '';
+        const OrderBook = () => {
+            const [orders, setOrders] = useState([]);
 
-            data.forEach(order => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${priceFormatter.format(order.price)}</td>
-                    <td>${amountFormatter.format(order.amount)} units</td>
-                    <td class="${order.side}">${order.side}</td>
-                `;
-                tbody.appendChild(row);
-            });
+            useEffect(() => {
+                const eventSource = new EventSource('/order-book-stream');
+                const priceFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+                const amountFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                eventSource.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    setOrders(data);
+                };
+
+                eventSource.onerror = function(err) {
+                    console.error('EventSource failed:', err);
+                    eventSource.close();
+                };
+
+                return () => {
+                    eventSource.close();
+                };
+            }, []);
+
+            return (
+                <table id="orderBook">
+                    <thead>
+                        <tr>
+                            <th>Price</th>
+                            <th>Amount</th>
+                            <th>Side</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {orders.map((order, index) => (
+                            <tr key={index}>
+                                <td>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(order.price)}</td>
+                                <td>{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(order.amount)} units</td>
+                                <td className={order.side}>{order.side}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            );
         };
 
-        eventSource.onerror = function(err) {
-            console.error('EventSource failed:', err);
-            eventSource.close();
-        };
+        ReactDOM.render(<OrderBook />, document.getElementById('root'));
     </script>
 </body>
 </html>
