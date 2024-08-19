@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fake Trading Pair Order Book with Inferno.js</title>
+    <title>Fake Trading Pair Order Book with Solid.js</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,91 +32,88 @@
             color: red;
         }
     </style>
-    <!-- Include Inferno.js and InfernoDOM from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/inferno@7.4.11/dist/inferno.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/inferno@7.4.11/dist/inferno-dom.min.js"></script>
-    <script src="https://unpkg.com/inferno-create-element@7.4.11/dist/inferno-create-element.js"></script>
-    <script src="https://unpkg.com/inferno-create-element@7.4.11/dist/inferno-create-element.min.js"></script>
+    <!-- Include Solid.js from CDN -->
+    <script type="module">
+        import { render } from "https://cdn.skypack.dev/solid-js/web";
+        import { createSignal, onCleanup } from "https://cdn.skypack.dev/solid-js";
+
+        function OrderBook() {
+            const [orders, setOrders] = createSignal([]);
+
+            const formatOrder = (order) => {
+                const priceFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+                const amountFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return {
+                    price: priceFormatter.format(order.price),
+                    amount: amountFormatter.format(order.amount) + " units",
+                    side: order.side
+                };
+            };
+
+            // Set up the Server-Sent Events (SSE) connection
+            const eventSource = new EventSource('/order-book-stream');
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data).map(formatOrder);
+                setOrders(data);
+            };
+
+            eventSource.onerror = function(err) {
+                console.error('EventSource failed:', err);
+                eventSource.close();
+            };
+
+            onCleanup(() => {
+                eventSource.close();
+            });
+
+            return () => {
+                const table = document.createElement('table');
+                table.id = 'orderBook';
+
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+
+                ['Price', 'Amount', 'Side'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    headerRow.appendChild(th);
+                });
+
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+                orders().forEach(order => {
+                    const row = document.createElement('tr');
+
+                    const priceCell = document.createElement('td');
+                    priceCell.textContent = order.price;
+
+                    const amountCell = document.createElement('td');
+                    amountCell.textContent = order.amount;
+
+                    const sideCell = document.createElement('td');
+                    sideCell.className = order.side;
+                    sideCell.textContent = order.side;
+
+                    row.appendChild(priceCell);
+                    row.appendChild(amountCell);
+                    row.appendChild(sideCell);
+
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(tbody);
+                return table;
+            };
+        }
+
+        render(OrderBook, document.getElementById("root"));
+    </script>
 </head>
 <body>
     <div id="root"></div>
-
-    <script>
-        const { createElement, Component, render } = Inferno;
-
-        class OrderBook extends Component {
-            constructor(props) {
-                super(props);
-                this.state = { orders: [] };
-            }
-
-            componentDidMount() {
-                const eventSource = new EventSource('/order-book-stream');
-                eventSource.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    this.setState({ orders: data });
-                };
-
-                eventSource.onerror = (err) => {
-                    console.error('EventSource failed:', err);
-                    eventSource.close();
-                };
-
-                this.eventSource = eventSource;
-            }
-
-            componentWillUnmount() {
-                if (this.eventSource) {
-                    this.eventSource.close();
-                }
-            }
-
-            render() {
-                return createElement(
-                    'table',
-                    { id: 'orderBook' },
-                    createElement(
-                        'thead',
-                        null,
-                        createElement(
-                            'tr',
-                            null,
-                            createElement('th', null, 'Price'),
-                            createElement('th', null, 'Amount'),
-                            createElement('th', null, 'Side')
-                        )
-                    ),
-                    createElement(
-                        'tbody',
-                        null,
-                        this.state.orders.map((order, index) =>
-                            createElement(
-                                'tr',
-                                { key: index },
-                                createElement(
-                                    'td',
-                                    null,
-                                    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(order.price)
-                                ),
-                                createElement(
-                                    'td',
-                                    null,
-                                    new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(order.amount) + ' units'
-                                ),
-                                createElement(
-                                    'td',
-                                    { className: order.side },
-                                    order.side
-                                )
-                            )
-                        )
-                    )
-                );
-            }
-        }
-
-        render(createElement(OrderBook), document.getElementById('root'));
-    </script>
 </body>
 </html>
 
