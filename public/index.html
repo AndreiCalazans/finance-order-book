@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fake Trading Pair Order Book</title>
+    <title>Fake Trading Pair Order Book with Inferno.js</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,64 +32,90 @@
             color: red;
         }
     </style>
-    <!-- Include React and ReactDOM from CDN -->
-    <script src="https://unpkg.com/react/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom/umd/react-dom.development.js" crossorigin></script>
-    <!-- Babel for JSX support -->
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <!-- Include Inferno.js and InfernoDOM from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/inferno@7.4.11/dist/inferno.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/inferno@7.4.11/dist/inferno-dom.min.js"></script>
+    <script src="https://unpkg.com/inferno-create-element@7.4.11/dist/inferno-create-element.js"></script>
+    <script src="https://unpkg.com/inferno-create-element@7.4.11/dist/inferno-create-element.min.js"></script>
 </head>
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <script>
+        const { createElement, Component, render } = Inferno;
 
-        const OrderBook = () => {
-            const [orders, setOrders] = useState([]);
+        class OrderBook extends Component {
+            constructor(props) {
+                super(props);
+                this.state = { orders: [] };
+            }
 
-            useEffect(() => {
+            componentDidMount() {
                 const eventSource = new EventSource('/order-book-stream');
-                const priceFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-                const amountFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-                eventSource.onmessage = function(event) {
+                eventSource.onmessage = (event) => {
                     const data = JSON.parse(event.data);
-                    setOrders(data);
+                    this.setState({ orders: data });
                 };
 
-                eventSource.onerror = function(err) {
+                eventSource.onerror = (err) => {
                     console.error('EventSource failed:', err);
                     eventSource.close();
                 };
 
-                return () => {
-                    eventSource.close();
-                };
-            }, []);
+                this.eventSource = eventSource;
+            }
 
-            return (
-                <table id="orderBook">
-                    <thead>
-                        <tr>
-                            <th>Price</th>
-                            <th>Amount</th>
-                            <th>Side</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {orders.map((order, index) => (
-                            <tr key={index}>
-                                <td>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(order.price)}</td>
-                                <td>{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(order.amount)} units</td>
-                                <td className={order.side}>{order.side}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            );
-        };
+            componentWillUnmount() {
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
+            }
 
-        ReactDOM.render(<OrderBook />, document.getElementById('root'));
+            render() {
+                return createElement(
+                    'table',
+                    { id: 'orderBook' },
+                    createElement(
+                        'thead',
+                        null,
+                        createElement(
+                            'tr',
+                            null,
+                            createElement('th', null, 'Price'),
+                            createElement('th', null, 'Amount'),
+                            createElement('th', null, 'Side')
+                        )
+                    ),
+                    createElement(
+                        'tbody',
+                        null,
+                        this.state.orders.map((order, index) =>
+                            createElement(
+                                'tr',
+                                { key: index },
+                                createElement(
+                                    'td',
+                                    null,
+                                    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(order.price)
+                                ),
+                                createElement(
+                                    'td',
+                                    null,
+                                    new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(order.amount) + ' units'
+                                ),
+                                createElement(
+                                    'td',
+                                    { className: order.side },
+                                    order.side
+                                )
+                            )
+                        )
+                    )
+                );
+            }
+        }
+
+        render(createElement(OrderBook), document.getElementById('root'));
     </script>
 </body>
 </html>
