@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Trading Pair Order Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        #orderBook {
+            width: 600px;
+            border-collapse: collapse;
+        }
+        #orderBook th, #orderBook td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        #orderBook th {
+            background-color: #f2f2f2;
+        }
+        .buy {
+            color: green;
+        }
+        .sell {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <table id="orderBook">
+        <thead>
+            <tr>
+                <th>Price</th>
+                <th>Amount</th>
+                <th>Side</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on('orderBookUpdate', (data) => {
+            const tbody = document.querySelector('#orderBook tbody');
+            tbody.innerHTML = '';
+
+            data.forEach(order => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${order.price}</td>
+                    <td>${order.amount}</td>
+                    <td class="${order.side}">${order.side}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        });
+    </script>
+</body>
+</html>
